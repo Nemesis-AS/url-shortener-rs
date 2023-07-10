@@ -1,10 +1,3 @@
-// @todo
-
-// 1) Save shortened links in LocalStorage
-// 2) Populate Table with links shortened
-// 3) BACKEND: Add Link Expiry
-
-
 window.onload = () => main();
 
 function main() {
@@ -15,6 +8,8 @@ function main() {
         // console.log(link);
         submitLink(link);
     });
+
+    updateTable();
 }
 
 async function submitLink(link) {
@@ -24,8 +19,56 @@ async function submitLink(link) {
             link
         })
     });
-    let json = await res.text();
+    let json = await res.json();
     console.log(json);
+    saveLink(json.id, json.link);
+}
+
+function saveLink(key, link) {
+    let data = loadLinks();
+    data[key] = link;
+    localStorage.setItem("linkData", JSON.stringify(data));
+
+    updateTable();
+}
+
+function loadLinks() {
+    let rawData = localStorage.getItem("linkData");
+    if (!rawData) return {};
+
+    // let data = JSON.parse(rawData);
+    // Object.keys(data).forEach(key => {
+    //     createTableRow(data[key], key);
+    // });
+    return JSON.parse(rawData);
+}
+
+function updateTable() {
+    const data = loadLinks();
+    const table = document.getElementById("linkBody");
+    table.innerHTML = "";
+
+    Object.keys(data).forEach(key => {
+        const row = createTableRow([data[key], key]);
+        table.appendChild(row);
+    });
+}
+
+function createTableRow(data) {
+    const row = document.createElement("tr");
+
+    data.forEach(item => {
+        const cell = document.createElement("td");
+
+        const link = document.createElement("a");
+        link.setAttribute("href", item);
+
+        link.appendChild(document.createTextNode(item));
+        cell.appendChild(link);
+        row.appendChild(cell);
+    });
+
+    return row;
 }
 
 // main();
