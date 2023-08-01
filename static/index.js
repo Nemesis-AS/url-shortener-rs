@@ -5,7 +5,6 @@ function main() {
         e.preventDefault();
 
         let link = document.getElementById("linkInput").value;
-        // console.log(link);
         submitLink(link);
     });
 
@@ -36,10 +35,6 @@ function loadLinks() {
     let rawData = localStorage.getItem("linkData");
     if (!rawData) return {};
 
-    // let data = JSON.parse(rawData);
-    // Object.keys(data).forEach(key => {
-    //     createTableRow(data[key], key);
-    // });
     return JSON.parse(rawData);
 }
 
@@ -70,6 +65,4 @@ function createTableRow(data) {
 
     return row;
 }
-
-// main();
 
