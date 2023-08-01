@@ -22,6 +22,12 @@ struct LinkRes {
     link: String,
 }
 
+#[derive(rocket::serde::Serialize)]
+#[serde(crate = "rocket::serde")]
+struct SimpleRes {
+    message: String,
+}
+
 #[rocket::post("/shorten", data = "<form>")]
 async fn shorten(db: DB, form: Json<LinkData<'_>>) -> Option<Json<LinkRes>> {
     let id: String = nanoid::nanoid!(6);
@@ -30,9 +36,14 @@ async fn shorten(db: DB, form: Json<LinkData<'_>>) -> Option<Json<LinkRes>> {
         id: id.clone(),
         link: link.clone(),
     };
-    db.run(move |conn| conn.execute("INSERT INTO links VALUES(?, ?)", params![id, link]))
-        .await
-        .ok()?;
+    db.run(move |conn| {
+        conn.execute(
+            "INSERT INTO links(id, link) VALUES(?, ?)",
+            params![id, link],
+        )
+    })
+    .await
+    .ok()?;
 
     Some(Json(res))
 }
@@ -49,9 +60,27 @@ async fn get_link(db: DB, id: String) -> Option<Redirect> {
         .ok()?;
 
     if res.is_empty() {
-        return None;
+        return Some(Redirect::to("/"));
     }
     Some(Redirect::to(res.get(0).unwrap().clone()))
+}
+
+#[rocket::get("/rem-exp")]
+async fn remove_expired(db: DB) -> Option<Json<SimpleRes>> {
+    db.run(|conn| {
+        conn.execute(
+            "DELETE FROM links WHERE expiry < CURRENT_TIMESTAMP",
+            params![],
+        )
+    })
+    .await
+    .ok()?;
+
+    let res: SimpleRes = SimpleRes {
+        message: String::from("Removed Expired Links!"),
+    };
+
+    Some(Json(res))
 }
 
 async fn init_db(rocket: Rocket<Build>) -> Rocket<Build> {
@@ -60,7 +89,7 @@ async fn init_db(rocket: Rocket<Build>) -> Rocket<Build> {
         .expect("Database Mounted")
         .run(|conn| {
             conn.execute(
-                "CREATE TABLE IF NOT EXISTS links(id TEXT PRIMARY KEY, link TEXT NOT NULL)",
+                "CREATE TABLE IF NOT EXISTS links(id TEXT PRIMARY KEY, link TEXT NOT NULL, expiry DATETIME DEFAULT (DATETIME(CURRENT_TIMESTAMP, '+30 days')))",
                 params![],
             )
         })
@@ -75,6 +104,6 @@ pub fn stage() -> AdHoc {
         rocket
             .attach(DB::fairing())
             .attach(AdHoc::on_ignite("Rusqlite Init", init_db))
-            .mount("/", routes![shorten, get_link])
+            .mount("/", routes![shorten, remove_expired, get_link])
     })
 }
