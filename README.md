@@ -6,8 +6,9 @@ A link shortener written in Rust using Rocket
 1. Clone the repository
 2. Run the server using `cargo run` or build a binary using `cargo b`
 
+If getting a Linker error for `sqlite3.lib`, add the `deps` dir as an env variable 
+```bash
+$Env:SQLITE3_LIB_DIR = "<path-to-repo>\deps"
+```
+
 **Note:** When building a binary, you also need to copy the static directory and put it in the same directory as the binary.
-
-## Todo
-
-- [ ] BACKEND: Add Link Expiry
