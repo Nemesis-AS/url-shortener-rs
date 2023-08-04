@@ -1,11 +1,14 @@
 use hmac::{Hmac, Mac};
-use jwt::{AlgorithmType, Header, SignWithKey, Token};
+use jwt::{AlgorithmType, Header, SignWithKey, Token, VerifyWithKey};
+use sha2::Sha384;
+use std::collections::BTreeMap;
+
 use rocket::fairing::AdHoc;
+use rocket::http::Status;
+use rocket::request::{FromRequest, Outcome, Request};
 use rocket::response::Redirect;
 use rocket::serde::{json::Json, Deserialize};
 use rocket::{routes, Build, Rocket};
-use sha2::Sha384;
-use std::collections::BTreeMap;
 
 use rocket_sync_db_pools::{database, rusqlite};
 
@@ -53,18 +56,73 @@ struct UserRes {
     message: String,
 }
 
+// Request Guards
+#[derive(Debug)]
+struct UserID(String);
+
+#[derive(Debug)]
+enum UserIDError {
+    Missing,
+    Invalid,
+    NotFound,
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for UserID {
+    type Error = UserIDError;
+
+    async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+        let header: Option<&str> = request.headers().get_one("Authorization");
+
+        match header {
+            None => Outcome::Failure((Status::BadRequest, UserIDError::Missing)),
+            Some(token_str) => {
+                if !token_str.contains("Bearer") {
+                    println!("[ERROR] Cannot Parse Bearer Token!");
+                    return Outcome::Failure((Status::BadRequest, UserIDError::Invalid));
+                }
+
+                let token: &str = token_str.split_whitespace().nth(1).unwrap();
+
+                let key: Hmac<Sha384> = Hmac::new_from_slice(TEST_SECRET).unwrap();
+                let claims: BTreeMap<String, String> = token.verify_with_key(&key).unwrap();
+                let uname: String = claims["username"].clone();
+
+                let db: DB = request.guard::<DB>().await.unwrap();
+
+                let exists: bool = db
+                    .run(move |conn| {
+                        conn.prepare("SELECT * FROM users WHERE username = ?")?
+                            .exists(params![&uname])
+                    })
+                    .await
+                    .unwrap();
+
+                if exists {
+                    Outcome::Success(UserID(claims["username"].clone()))
+                } else {
+                    println!("[ERROR] Cannot Shorten Link: User not found!");
+                    Outcome::Failure((Status::Unauthorized, UserIDError::NotFound))
+                }
+            }
+        }
+    }
+}
+
 #[rocket::post("/shorten", data = "<form>")]
-async fn shorten(db: DB, form: Json<LinkData<'_>>) -> Option<Json<LinkRes>> {
+async fn shorten(db: DB, form: Json<LinkData<'_>>, user_id: UserID) -> Option<Json<LinkRes>> {
+    let uname: String = user_id.0;
     let id: String = nanoid::nanoid!(6);
     let link: String = String::from(form.link);
     let res: LinkRes = LinkRes {
         id: id.clone(),
         link: link.clone(),
     };
+
     db.run(move |conn| {
         conn.execute(
-            "INSERT INTO links(id, link) VALUES(?, ?)",
-            params![id, link],
+            "INSERT INTO links(id, link, user) VALUES(?, ?, ?)",
+            params![id, link, uname],
         )
     })
     .await
@@ -202,6 +260,27 @@ async fn login(db: DB, form: Json<UserInfo<'_>>) -> Option<Json<UserRes>> {
     }
 }
 
+// Dashboard Utils
+#[rocket::get("/get-user-links")]
+async fn get_user_links(db: DB, user_id: UserID) -> Option<Json<Vec<LinkRes>>> {
+    let uname: String = user_id.0;
+    let rows = db
+        .run(move |conn| {
+            conn.prepare("SELECT * FROM links WHERE user = ?")?
+                .query_map(params![uname], |row| {
+                    Ok(LinkRes {
+                        id: row.get(0).unwrap(),
+                        link: row.get(1).unwrap(),
+                    })
+                })?
+                .collect::<Result<Vec<LinkRes>, _>>()
+        })
+        .await
+        .ok()?;
+
+    Some(Json(rows))
+}
+
 // Utils
 
 fn generate_token(
@@ -225,7 +304,7 @@ async fn init_db(rocket: Rocket<Build>) -> Rocket<Build> {
     let connection = DB::get_one(&rocket).await.expect("Database Mounted");
     connection.run(|conn| {
             conn.execute(
-                "CREATE TABLE IF NOT EXISTS links(id TEXT PRIMARY KEY, link TEXT NOT NULL, expiry DATETIME DEFAULT (DATETIME(CURRENT_TIMESTAMP, '+30 days')))",
+                "CREATE TABLE IF NOT EXISTS links(id TEXT PRIMARY KEY, link TEXT NOT NULL, expiry DATETIME DEFAULT (DATETIME(CURRENT_TIMESTAMP, '+30 days')), user TEXT)",
                 params![],
             )
         })
@@ -250,7 +329,14 @@ pub fn stage() -> AdHoc {
             .attach(AdHoc::on_ignite("Rusqlite Init", init_db))
             .mount(
                 "/",
-                routes![shorten, remove_expired, register, login, get_link],
+                routes![
+                    shorten,
+                    remove_expired,
+                    register,
+                    login,
+                    get_user_links,
+                    get_link
+                ],
             )
     })
 }
