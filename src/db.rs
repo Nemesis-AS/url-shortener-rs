@@ -78,7 +78,7 @@ impl<'r> FromRequest<'r> for UserID {
             None => Outcome::Failure((Status::BadRequest, UserIDError::Missing)),
             Some(token_str) => {
                 if !token_str.contains("Bearer") {
-                    println!("[ERROR] Cannot Parse Bearer Token!");
+                    println!("[ERROR] UserID: Cannot Parse Bearer Token!");
                     return Outcome::Failure((Status::BadRequest, UserIDError::Invalid));
                 }
 
@@ -101,8 +101,67 @@ impl<'r> FromRequest<'r> for UserID {
                 if exists {
                     Outcome::Success(UserID(claims["username"].clone()))
                 } else {
-                    println!("[ERROR] Cannot Shorten Link: User not found!");
+                    println!("[ERROR] UserID: User not found!");
                     Outcome::Failure((Status::Unauthorized, UserIDError::NotFound))
+                }
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+struct IsAdmin;
+
+#[derive(Debug)]
+enum IsAdminError {
+    Unauthorized,
+    NotAdmin,
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for IsAdmin {
+    type Error = IsAdminError;
+
+    async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+        let header: Option<&str> = request.headers().get_one("Authorization");
+
+        match header {
+            None => Outcome::Failure((Status::BadRequest, IsAdminError::Unauthorized)),
+            Some(token_str) => {
+                if !token_str.contains("Bearer") {
+                    println!("[ERROR] IsAdmin: Cannot Parse Bearer Token!");
+                    return Outcome::Failure((Status::BadRequest, IsAdminError::NotAdmin));
+                }
+
+                let token: &str = token_str.split_whitespace().nth(1).unwrap();
+
+                let key: Hmac<Sha384> = Hmac::new_from_slice(TEST_SECRET).unwrap();
+                let claims: BTreeMap<String, String> = token.verify_with_key(&key).unwrap();
+                let uname: String = claims["username"].clone();
+
+                let db: DB = request.guard::<DB>().await.unwrap();
+
+                let status_vec = db
+                    .run(move |conn| {
+                        conn.prepare("SELECT admin FROM users WHERE username = ?")?
+                            .query_map(params![&uname], |row| row.get(0))?
+                            .collect::<Result<Vec<i32>, _>>()
+                    })
+                    .await
+                    .unwrap();
+
+                if status_vec.is_empty() {
+                    println!("[ERROR] IsAdmin: User Not Found!");
+                    return Outcome::Failure((Status::Unauthorized, IsAdminError::Unauthorized));
+                }
+
+                let is_admin: bool = status_vec[0] != 0;
+
+                if is_admin {
+                    Outcome::Success(IsAdmin)
+                } else {
+                    println!("[ERROR] IsAdmin: Non Admin User cannot access this route!");
+                    Outcome::Failure((Status::Unauthorized, IsAdminError::NotAdmin))
                 }
             }
         }
@@ -149,7 +208,7 @@ async fn get_link(db: DB, id: String) -> Option<Redirect> {
 }
 
 #[rocket::get("/rem-exp")]
-async fn remove_expired(db: DB) -> Option<Json<SimpleRes>> {
+async fn remove_expired(db: DB, _admin: IsAdmin) -> Option<Json<SimpleRes>> {
     db.run(|conn| {
         conn.execute(
             "DELETE FROM links WHERE expiry < CURRENT_TIMESTAMP",
