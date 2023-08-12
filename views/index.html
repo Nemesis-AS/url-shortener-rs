@@ -8,33 +8,37 @@
     <link rel="stylesheet" type="text/css" href="./static/index.css" />
 </head>
 <body>
-
     <main>
-        <h1 class="title">
-            Link Shortener
-        </h1>
-        <form id="linkForm" action="/shorten" method="post" enctype="multipart/form-data">
-            <input id="linkInput" name="link" type="url" placeholder="https://google.com" autocomplete="off" />
-            <button type="submit">Shorten</button>
-        </form>
-        <table>
-            <thead>
-                <th>URL</th>
-                <th>Link</th>
-            </thead>
-            <tbody id="linkBody">
-                <tr>
-                    <td>
-                        https://google.com
-                    </td>
-                    <td>
-                        http://localhost:8000/7rLo5q
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+        <div class="form-container">
+            <h1 class="title">
+                Link Shortener
+            </h1>
+            <p>Shorten your links with ease!</p>
+            <form id="linkForm">
+                <input id="linkInput" name="link" type="url" placeholder="https://google.com" autocomplete="off" />
+                <button type="submit">Shorten</button>
+            </form>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <th>URL</th>
+                    <th>Link</th>
+                </thead>
+                <tbody id="linkBody"></tbody>
+            </table>
+            <div class="g1"></div>
+        </div>
     </main>
     
+    <div class="user-bar">
+        <div class="user-div">
+            User: <span id="username">Logged Out</span>
+        </div>
+        <button id="logout" class="log-out">
+            Logout
+        </button>
+    </div>
 
     <script src="./static/index.js"></script>
 </body>
