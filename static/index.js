@@ -1,52 +1,72 @@
-window.onload = () => main();
-
 function main() {
+    if (!localStorage.getItem("user")) {
+        window.location = "/auth";
+        return;
+    }
+
+    document.getElementById("username").innerText = JSON.parse(localStorage.getItem("user")).username;
+
     document.getElementById("linkForm").addEventListener("submit", e => {
         e.preventDefault();
 
-        let link = document.getElementById("linkInput").value;
+        const linkInput = document.getElementById("linkInput");
+        let link = linkInput.value;
+        linkInput.value = "";
         submitLink(link);
     });
+
+    document.getElementById("logout").addEventListener("click", logout);
 
     updateTable();
 }
 
 async function submitLink(link) {
+    const userData = JSON.parse(localStorage.getItem("user"));
+    if (!userData) {
+        console.error("Cannot Shorten Link: User not logged in!");
+        return;
+    }
+
     let res = await fetch("/shorten", {
         method: "POST",
+        headers: {
+            "Authorization": `Bearer ${userData.token || "null"}`,
+        },
         body: JSON.stringify({
-            link
-        })
+            link,
+        }),
     });
     let json = await res.json();
     console.log(json);
-    saveLink(json.id, json.link);
-}
-
-function saveLink(key, link) {
-    let data = loadLinks();
-    data[key] = link;
-    localStorage.setItem("linkData", JSON.stringify(data));
-
     updateTable();
 }
 
-function loadLinks() {
-    let rawData = localStorage.getItem("linkData");
-    if (!rawData) return {};
+async function fetchLinks() {
+    const userData = JSON.parse(localStorage.getItem("user"));
+    if (!userData) {
+        console.error("Cannot Load Links: User not logged in!");
+        return;
+    }
 
-    return JSON.parse(rawData);
+    const res = await fetch("/get-user-links", {
+        headers: {
+            "Authorization": `Bearer ${userData.token || "null"}`,
+        },
+    });
+
+    const links = await res.json();
+    return links;
 }
 
-function updateTable() {
-    const data = loadLinks();
+async function updateTable() {
+    const data = await fetchLinks();
     const table = document.getElementById("linkBody");
     table.innerHTML = "";
 
-    Object.keys(data).forEach(key => {
-        const row = createTableRow([data[key], key]);
+    for (idx in data) {
+        const row = createTableRow([data[idx].link, data[idx].id]);
         table.appendChild(row);
-    });
+    }
 }
 
 function createTableRow(data) {
@@ -66,3 +86,9 @@ function createTableRow(data) {
     return row;
 }
 
+function logout() {
+    localStorage.clear();
+    window.location = "/auth?login";
+}
+
+window.onload = main;

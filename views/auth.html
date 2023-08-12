@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Auth | Link Shortener</title>
+
+    <link rel="stylesheet" href="./static/auth.css" />
+</head>
+<body>
+    <main>
+        <div class="form-div">
+            <form id="register">
+                <div class="form-header">Register</div>
+                <div class="input-row">
+                    <label for="rUsername">Username: </label>
+                    <input id="rUsername" name="username" type="text" />
+                </div>
+                <div class="input-row">
+                    <label for="rPassword">Password: </label>
+                    <input id="rPassword" name="password" type="password" />
+                </div>
+                <div class="input-row">
+                    <label for="rconfirmPass">Confirm Password: </label>
+                    <input id="rconfirmPass" name="confirmPassword" type="password" />
+                </div>
+                <div class="input-row">
+                    <button type="submit">Register</button>
+                </div>
+                <div class="footer">
+                    Already Registered? <button type="button" class="link-btn" data-page="1">Login</button> here
+                </div>
+            </form>
+        </div>
+        <div class="form-div">
+            <form id="login">
+                <div class="form-header">Login</div>
+                <div class="input-row">
+                    <label for="lUsername">Username: </label>
+                    <input id="lUsername" name="username" type="text" />
+                </div>
+                <div class="input-row">
+                    <label for="lPassword">Password: </label>
+                    <input id="lPassword" name="password" type="password" />
+                </div>
+                <div class="input-row">
+                    <button type="submit">Login</button>
+                </div>
+                <div class="footer">
+                    New to link Shortener? <button type="button" class="link-btn" data-page="0">Register</button> here
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <script src="./static/auth.js"></script>
+</body>
+</html>

@@ -2,7 +2,10 @@
     --button-bg: #0284c7;
     --button-border: #075985;
 
-    --bgc: #ccfbf1;
+    --border-color: #065f46;
+    --bgc: #047857;
+    --bgc-secondary: #ecfdf5;
+    --text-color: #1e293b;
 }
 
 *, *::before, *::after {
@@ -12,18 +15,35 @@
 }
 
 body {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--bgc);
     min-height: 100vh;
+    display: flex;
+    background-color: var(--bgc-secondary);
+    background-image: url("./assets/indexwave.svg");
+    background-size: 100% auto;
+    background-repeat: no-repeat;
+    background-position: top;
 }
 
 main {
+    display: grid;
+    grid-template-rows: 1fr 2fr;
+    flex-grow: 1;
+}
+
+.form-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+}
+
+.table-container {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1rem;
+    padding: 2rem 1rem;
+    background-position: top;
 }
 
 form {
@@ -34,10 +54,12 @@ form {
 input {
     font-size: 1.2rem;
     padding: .5rem;
-    border: 2px solid black;
+    border: 2px solid var(--border-color);
     border-right: none;
     border-radius: .5rem 0 0 .5rem;
     flex-grow: 1;
+    background-color: var(--bgc-secondary);
+    color: var(--text-color)
 }
 
 button[type="submit"] {
@@ -53,16 +75,17 @@ button[type="submit"] {
 
 table {
     border-collapse: collapse;
-    /* border-radius: .5rem; */
+    width: 80vw;
+    color: var(--text-color);
 }
 
 th, td {
-    border: 2px solid black;
+    border: 2px solid var(--border-color);
     padding: .2rem 1rem;
 }
 
 td {
-    border: 1px solid black;
+    border: 1px solid var(--border-color);
     text-align: left;
 }
 
@@ -70,4 +93,29 @@ a {
     color: currentColor;
     font-weight: bold;
     text-decoration: underline;
+}
+
+.g1 {
+    flex-grow: 1;
+}
+
+.user-bar {
+    position: absolute;
+    top: .5rem;
+    right: .5rem;
+    padding: .5rem;
+    display: flex;
+    gap: .5rem;
+    align-items: center;
+    color: white;
+}
+
+#logout {
+    font-weight: 500;
+    color: black;
+    background-color: white;
+    border: none;
+    border-radius: .5rem;
+    padding: .5rem;
+    cursor: pointer;
 }
