@@ -15,6 +15,11 @@ async fn auth() -> Option<NamedFile> {
 
 #[rocket::main]
 pub async fn start() -> Result<(), rocket::Error> {
+    match dotenvy::dotenv() {
+        Ok(_) => println!("Loaded Config!"),
+        Err(err) => println!("Couldn't Load Config Variables!\nError: {:?}", err),
+    }
+
     let _rocket = rocket::build()
         .mount("/", routes![home, auth])
         .attach(crate::db::stage())

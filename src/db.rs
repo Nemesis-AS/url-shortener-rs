@@ -1,3 +1,5 @@
+use std::env;
+
 use hmac::{Hmac, Mac};
 use jwt::{AlgorithmType, Header, SignWithKey, Token, VerifyWithKey};
 use sha2::Sha384;
@@ -13,8 +15,6 @@ use rocket::{routes, Build, Rocket};
 use rocket_sync_db_pools::{database, rusqlite};
 
 use self::rusqlite::params;
-
-const TEST_SECRET: &[u8; 10] = b"HelloWorld";
 
 // $Env:SQLITE3_LIB_DIR = "D:\Source\sqlite\v3420000\lib"
 
@@ -84,7 +84,9 @@ impl<'r> FromRequest<'r> for UserID {
 
                 let token: &str = token_str.split_whitespace().nth(1).unwrap();
 
-                let key: Hmac<Sha384> = Hmac::new_from_slice(TEST_SECRET).unwrap();
+                let secret: Vec<u8> = get_jwt_secret();
+
+                let key: Hmac<Sha384> = Hmac::new_from_slice(&secret).unwrap();
                 let claims: BTreeMap<String, String> = token.verify_with_key(&key).unwrap();
                 let uname: String = claims["username"].clone();
 
@@ -135,7 +137,9 @@ impl<'r> FromRequest<'r> for IsAdmin {
 
                 let token: &str = token_str.split_whitespace().nth(1).unwrap();
 
-                let key: Hmac<Sha384> = Hmac::new_from_slice(TEST_SECRET).unwrap();
+                let secret: Vec<u8> = get_jwt_secret();
+
+                let key: Hmac<Sha384> = Hmac::new_from_slice(&secret).unwrap();
                 let claims: BTreeMap<String, String> = token.verify_with_key(&key).unwrap();
                 let uname: String = claims["username"].clone();
 
@@ -352,11 +356,22 @@ fn generate_token(
     let mut claims = BTreeMap::new();
     claims.insert("username", username);
 
-    let key: Hmac<Sha384> = Hmac::new_from_slice(TEST_SECRET).ok()?;
+    let secret: Vec<u8> = get_jwt_secret();
+
+    let key: Hmac<Sha384> = Hmac::new_from_slice(&secret).ok()?;
     let token: Token<Header, BTreeMap<&str, &str>, jwt::token::Signed> =
         Token::new(header, claims).sign_with_key(&key).ok()?;
 
     Some(token)
+}
+
+fn get_jwt_secret() -> Vec<u8> {
+    if let Ok(secret) = env::var("JWT_SECRET") {
+        secret.as_bytes().to_vec()
+    } else {
+        println!("Could not load JWT_SECRET! Using default secret instead!");
+        b"HelloWorld".to_vec()
+    }
 }
 
 async fn init_db(rocket: Rocket<Build>) -> Rocket<Build> {
